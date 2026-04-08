@@ -3,9 +3,10 @@ import { randomBytes } from "crypto";
 import { ENV } from "../config/env.js";
 
 const buildClaims = (user) => ({
-  sub: String(user._id),
-  role: user.role,
-  jti: randomBytes(8).toString("hex")
+  sub:            String(user._id),
+  role:           user.role,
+  approvalStatus: user.approvalStatus ?? "pending",
+  jti:            randomBytes(8).toString("hex"),
 });
 
 export const createAccessToken = (user) => {

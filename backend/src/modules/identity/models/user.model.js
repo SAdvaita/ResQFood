@@ -47,6 +47,11 @@ const userSchema = new Schema(
     },
     isActive: { type: Boolean, default: true },
 
+    // ── Verification flags ─────────────────────────────
+    emailVerified:   { type: Boolean, default: false },
+    emailVerifiedAt: { type: Date,    default: null  },
+    phoneVerified:   { type: Boolean, default: false },
+
     /** Reference: employee sub-role links to parent customer user */
     parentCustomerId: {
       type: Schema.Types.ObjectId,

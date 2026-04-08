@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { PasswordResetModal } from "../components/AuthWidgets";
 
 const MAX_ATTEMPTS = 4;
 
@@ -9,6 +10,7 @@ const LoginPage = ({ onSwitch }) => {
   const [password, setPassword]     = useState("");
   const [loading, setLoading]       = useState(false);
   const [showPass, setShowPass]     = useState(false);
+  const [showReset, setShowReset]   = useState(false);
   const [status, setStatus]         = useState(null);   // { type, message, attempts?, locked? }
 
   const handleSubmit = async (e) => {
@@ -147,12 +149,25 @@ const LoginPage = ({ onSwitch }) => {
         </div>
       )}
 
+      <div className="switch-text" style={{ marginTop: 12 }}>
+        <button
+          id="btn-forgot-password"
+          className="switch-btn"
+          style={{ color: "var(--clr-muted)", fontSize: "0.8rem" }}
+          onClick={() => setShowReset(true)}
+        >
+          Forgot password?
+        </button>
+      </div>
+
       <div className="switch-text">
         New here?{" "}
         <button id="btn-go-register" className="switch-btn" onClick={onSwitch}>
           Create an account
         </button>
       </div>
+
+      {showReset && <PasswordResetModal onClose={() => setShowReset(false)} />}
     </div>
   );
 };

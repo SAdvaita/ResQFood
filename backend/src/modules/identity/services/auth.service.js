@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import User from "../models/User.model.js";
+import User from "../models/user.model.js";
 import { createAccessToken, createRefreshToken, verifyRefreshToken } from "../../../utils/jwt.util.js";
 import { AppError } from "../../../utils/appError.util.js";
 
