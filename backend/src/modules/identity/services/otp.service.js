@@ -12,6 +12,7 @@ import crypto    from "crypto";
 import bcrypt    from "bcryptjs";
 import OTP       from "../models/otp.model.js";
 import { AppError } from "../../../utils/appError.util.js";
+import { sendMail } from "../../../utils/mailer.util.js";
 
 const OTP_LENGTH     = 6;
 const OTP_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes
@@ -43,25 +44,12 @@ const sendSms = async (phone, message) => {
 // ─── Send via Email (nodemailer-ready) ────────────────────────────────────────
 
 const sendEmail = async (email, subject, body) => {
-  /* ── LIVE: uncomment when nodemailer is configured ──────────────────────
-  const nodemailer = (await import("nodemailer")).default;
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: false,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
-  await transporter.sendMail({
-    from: `"ResQFood" <${process.env.SMTP_FROM}>`,
-    to:   email,
+  return sendMail({
+    to: email,
     subject,
     text: body,
     html: `<p>${body}</p>`,
   });
-  ────────────────────────────────────────────────────────────────────────── */
-
-  // MOCK: log to console
-  console.log(`\n📧 [EMAIL MOCK] → ${email}\n   Subject: ${subject}\n   Body: ${body}\n`);
 };
 
 // ─── Public: sendOTP ──────────────────────────────────────────────────────────
@@ -90,9 +78,20 @@ export const sendOTP = async (identifier, purpose) => {
 
   const isEmail = identifier.includes("@");
   if (isEmail) {
-    await sendEmail(identifier, "ResQFood – Your OTP Code", message);
+    const result = await sendEmail(identifier, "ResQFood - Your OTP Code", message);
+    return {
+      channel: "email",
+      mode: result.mode,
+      // Exposed only in development to aid local testing.
+      ...(process.env.NODE_ENV !== "production" && result.mode === "mock" ? { devCode: plain } : {}),
+    };
   } else {
     await sendSms(identifier, message);
+    return {
+      channel: "sms",
+      mode: "mock",
+      ...(process.env.NODE_ENV !== "production" ? { devCode: plain } : {}),
+    };
   }
 };
 

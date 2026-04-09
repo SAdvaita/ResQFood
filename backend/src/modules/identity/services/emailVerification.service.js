@@ -18,8 +18,16 @@ import User  from "../models/user.model.js";
 import { sendOTP, verifyOTP } from "./otp.service.js";
 import { AppError } from "../../../utils/appError.util.js";
 import { ENV } from "../../../config/env.js";
+import { sendMail } from "../../../utils/mailer.util.js";
 
 const LINK_EXPIRES = "30m"; // magic-link expiry
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const assertValidEmail = (email) => {
+  if (!EMAIL_PATTERN.test(String(email || "").trim().toLowerCase())) {
+    throw new AppError("Not correct mailID", 400, "VALIDATION_ERROR");
+  }
+};
 
 // ─── Send OTP Code ────────────────────────────────────────────────────────────
 
@@ -31,9 +39,18 @@ export const sendEmailVerificationOTP = async (userId) => {
   const user = await User.findById(userId);
   if (!user) throw new AppError("User not found", 404, "NOT_FOUND");
   if (user.emailVerified) throw new AppError("Email already verified", 409, "CONFLICT");
+  assertValidEmail(user.email);
 
-  await sendOTP(user.email, "email_verify");
-  return { message: `Verification code sent to ${user.email}` };
+  const otpResult = await sendOTP(user.email, "email_verify");
+  return {
+    message: `Verification code sent to ${user.email}`,
+    ...(process.env.NODE_ENV !== "production"
+      ? {
+          deliveryMode: otpResult?.mode ?? null,
+          ...(otpResult?.devCode ? { devCode: otpResult.devCode } : {}),
+        }
+      : {}),
+  };
 };
 
 // ─── Verify OTP Code ──────────────────────────────────────────────────────────
@@ -67,6 +84,7 @@ export const sendEmailVerificationLink = async (userId) => {
   const user = await User.findById(userId);
   if (!user) throw new AppError("User not found", 404, "NOT_FOUND");
   if (user.emailVerified) throw new AppError("Email already verified", 409, "CONFLICT");
+  assertValidEmail(user.email);
 
   const token = jwt.sign(
     { sub: String(user._id), purpose: "email_verify" },
@@ -76,19 +94,12 @@ export const sendEmailVerificationLink = async (userId) => {
 
   const link = `${ENV.FRONTEND_ORIGIN}/verify-email?token=${token}`;
 
-  /* ── LIVE: replace with real email send ─────────────────────────────────
-  import nodemailer from "nodemailer";
-  const transporter = nodemailer.createTransport({ ... });
-  await transporter.sendMail({
-    from: `"ResQFood" <${process.env.SMTP_FROM}>`,
-    to:   user.email,
+  await sendMail({
+    to: user.email,
     subject: "Verify your ResQFood email",
-    html: `<a href="${link}">Click here to verify your email</a>. Expires in 30 minutes.`,
+    text: `Click this link to verify your email (valid 30 minutes): ${link}`,
+    html: `<p>Click this link to verify your email (valid 30 minutes):</p><p><a href="${link}">${link}</a></p>`,
   });
-  ────────────────────────────────────────────────────────────────────────── */
-
-  // MOCK
-  console.log(`\n📧 [EMAIL MOCK] Verify link for ${user.email}:\n   ${link}\n`);
 
   return { message: `Verification link sent to ${user.email}` };
 };

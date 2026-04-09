@@ -63,7 +63,16 @@ export const sendEmailOTP = async (req, res) => {
   try {
     const userId = req.auth?.sub;
     const result = await sendEmailVerificationOTP(userId);
-    return sendSuccess(res, { message: result.message, data: null });
+    return sendSuccess(res, {
+      message: result.message,
+      data:
+        process.env.NODE_ENV !== "production"
+          ? {
+              deliveryMode: result.deliveryMode ?? null,
+              ...(result.devCode ? { devCode: result.devCode } : {}),
+            }
+          : null,
+    });
   } catch (err) {
     if (err instanceof AppError) return sendError(res, { statusCode: err.statusCode, message: err.message, code: err.code });
     return sendError(res, { statusCode: 500, message: "Failed to send email OTP", code: "INTERNAL_SERVER_ERROR" });
@@ -123,14 +132,21 @@ export const requestPasswordReset = async (req, res) => {
 
     // Check user exists (but don't leak whether they do or not)
     const user = await User.findByIdentifier(identifier);
+    let otpResult = null;
     if (user) {
-      await sendOTP(identifier.trim(), "password_reset");
+      otpResult = await sendOTP(identifier.trim(), "password_reset");
     }
 
     // Always return success to prevent email enumeration
     return sendSuccess(res, {
       message: "If an account exists, a reset code has been sent.",
-      data: null,
+      data:
+        process.env.NODE_ENV !== "production" && otpResult
+          ? {
+              deliveryMode: otpResult.mode,
+              ...(otpResult.devCode ? { devCode: otpResult.devCode } : {}),
+            }
+          : null,
     });
   } catch (err) {
     return sendError(res, { statusCode: 500, message: "Reset request failed", code: "INTERNAL_SERVER_ERROR" });

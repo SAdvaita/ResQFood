@@ -14,11 +14,19 @@ const EmailVerifyBanner = ({ user }) => {
   const handleSend = async () => {
     setLoading(true);
     try {
-      await sendEmailVerification();
+      const res = await sendEmailVerification();
+      const devCode = res?.data?.data?.devCode;
+      const deliveryMode = res?.data?.data?.deliveryMode;
       setStep("sent");
       toast.success("Verification code sent to your email!");
-    } catch {
-      toast.error("Failed to send verification code");
+      if (deliveryMode === "mock") {
+        toast.error("Email service is not configured. Using local mock mode.");
+      }
+      if (devCode && deliveryMode === "mock") {
+        toast.success(`Dev OTP: ${devCode}`);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to send verification code");
     } finally {
       setLoading(false);
     }
@@ -81,8 +89,16 @@ export const PasswordResetModal = ({ onClose }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await requestPasswordReset(identifier);
+      const res = await requestPasswordReset(identifier);
+      const devCode = res?.data?.data?.devCode;
+      const deliveryMode = res?.data?.data?.deliveryMode;
       toast.success("If the account exists, a reset code was sent.");
+      if (deliveryMode === "mock") {
+        toast.error("Email service is not configured. Using local mock mode.");
+      }
+      if (devCode && deliveryMode === "mock") {
+        toast.success(`Dev reset OTP: ${devCode}`);
+      }
       setStep("confirm");
     } catch {
       toast.error("Request failed. Try again.");
