@@ -3,14 +3,47 @@ import { Router } from "express";
 import { requireAuth } from "../../../middlewares/auth.middleware.js";
 import { requireRole } from "../../../middlewares/rbac.middleware.js";
 import { sendSuccess, sendError } from "../../../utils/response.util.js";
+import * as notifService from "../services/notification.service.js";
+import AuditLog from "../models/auditLog.model.js";
+import Food from "../../customer/models/food.model.js";
 
 const router = Router();
 
-// All governance routes require admin role
-router.use(requireAuth, requireRole("admin"));
-
 // Lazy-load User model (avoid circular import issues)
 const getUser = () => mongoose.model("User");
+
+// ─── Notification routes (any authenticated user) ─────────────────────────────
+
+router.get("/notifications", requireAuth, async (req, res) => {
+  try {
+    const result = await notifService.getUserNotifications(req.auth.sub, req.query);
+    return sendSuccess(res, { message: "Notifications fetched", data: result });
+  } catch {
+    return sendError(res, { statusCode: 500, message: "Failed to fetch notifications", code: "INTERNAL_SERVER_ERROR" });
+  }
+});
+
+router.patch("/notifications/:id/read", requireAuth, async (req, res) => {
+  try {
+    await notifService.markRead(req.auth.sub, req.params.id);
+    return sendSuccess(res, { message: "Notification marked as read", data: null });
+  } catch {
+    return sendError(res, { statusCode: 500, message: "Failed to mark notification", code: "INTERNAL_SERVER_ERROR" });
+  }
+});
+
+router.patch("/notifications/read-all", requireAuth, async (req, res) => {
+  try {
+    await notifService.markAllRead(req.auth.sub);
+    return sendSuccess(res, { message: "All notifications marked as read", data: null });
+  } catch {
+    return sendError(res, { statusCode: 500, message: "Failed to mark notifications", code: "INTERNAL_SERVER_ERROR" });
+  }
+});
+
+// ─── Admin-only routes below ──────────────────────────────────────────────────
+
+router.use(requireAuth, requireRole("admin"));
 
 // ─── GET /governance/users/pending ───────────────────────────────────────────
 router.get("/users/pending", async (req, res) => {
@@ -97,26 +130,62 @@ router.patch("/users/:id/toggle-active", async (req, res) => {
 // ─── GET /governance/stats ─────────────────────────────────────────────────────
 router.get("/stats", async (req, res) => {
   try {
-    let Donation;
-    try { Donation = mongoose.model("Donation"); } catch { Donation = null; }
-
-    const [totalUsers, pendingUsers, approvedUsers, totalDonations, deliveredDonations] = await Promise.all([
+    const [totalUsers, pendingUsers, approvedUsers, totalFoods, deliveredFoods] = await Promise.all([
       getUser().countDocuments({}),
       getUser().countDocuments({ approvalStatus: "pending" }),
       getUser().countDocuments({ approvalStatus: "approved" }),
-      Donation ? Donation.countDocuments({}) : 0,
-      Donation ? Donation.countDocuments({ status: "delivered" }) : 0,
+      Food.countDocuments({}).catch(() => 0),
+      Food.countDocuments({ status: "delivered" }).catch(() => 0),
     ]);
 
     return sendSuccess(res, {
       message: "Stats fetched",
       data: {
         users:     { total: totalUsers, pending: pendingUsers, approved: approvedUsers },
-        donations: { total: totalDonations, delivered: deliveredDonations },
+        donations: { total: totalFoods, delivered: deliveredFoods },
       }
     });
   } catch {
     return sendError(res, { statusCode: 500, message: "Failed to fetch stats", code: "INTERNAL_SERVER_ERROR" });
+  }
+});
+
+// ─── GET /governance/donations ────────────────────────────────────────────────
+router.get("/donations", async (req, res) => {
+  try {
+    const page  = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, parseInt(req.query.limit) || 20);
+    const filter = {};
+    if (req.query.status) filter.status = req.query.status;
+
+    const [foods, total] = await Promise.all([
+      Food.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit)
+        .populate("customerId", "name email phone").lean(),
+      Food.countDocuments(filter),
+    ]);
+
+    return sendSuccess(res, { message: "Donations fetched", data: { foods, total, page, pages: Math.ceil(total / limit) } });
+  } catch {
+    return sendError(res, { statusCode: 500, message: "Failed to fetch donations", code: "INTERNAL_SERVER_ERROR" });
+  }
+});
+
+// ─── GET /governance/audit-logs ───────────────────────────────────────────────
+router.get("/audit-logs", async (req, res) => {
+  try {
+    const page  = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, parseInt(req.query.limit) || 30);
+    const filter = {};
+    if (req.query.action) filter.action = req.query.action;
+
+    const [logs, total] = await Promise.all([
+      AuditLog.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+      AuditLog.countDocuments(filter),
+    ]);
+
+    return sendSuccess(res, { message: "Audit logs fetched", data: { logs, total, page, pages: Math.ceil(total / limit) } });
+  } catch {
+    return sendError(res, { statusCode: 500, message: "Failed to fetch audit logs", code: "INTERNAL_SERVER_ERROR" });
   }
 });
 

@@ -1073,6 +1073,89 @@ body {
   color: var(--clr-muted);
 }
 
+/* ─── Donation Items ─────────────────────────────────────────────────────────── */
+.donations-list { display: flex; flex-direction: column; gap: 10px; }
+.donation-item {
+  background: var(--clr-bg-card);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  transition: border-color var(--transition);
+}
+.donation-item:hover { border-color: rgba(255,255,255,0.15); }
+.donation-item-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.donation-item-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--clr-text);
+  margin-bottom: 6px;
+}
+.donation-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  color: var(--clr-muted);
+}
+
+/* ─── Status Chip ────────────────────────────────────────────────────────────── */
+.status-chip {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+/* ─── Food Form ──────────────────────────────────────────────────────────────── */
+.food-form {
+  background: var(--clr-bg-card);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  padding: 28px 24px;
+  margin-bottom: 24px;
+}
+
+.food-form select {
+  width: 100%;
+  padding: 13px 16px;
+  background: var(--clr-input-bg);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color: var(--clr-text);
+  font-size: 0.925rem;
+  font-family: inherit;
+  transition: all var(--transition);
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+}
+.food-form select:focus {
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 3px rgba(34, 211, 165, 0.12);
+}
+.food-form select option {
+  background: var(--clr-bg-2);
+  color: var(--clr-text);
+}
+
+/* ─── Status Dot ─────────────────────────────────────────────────────────────── */
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+}
+
 /* ─── Responsive ─────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .sidebar       { display: none; }
